@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Gamepad2, Save, Star, Power, ShieldAlert } from "lucide-react";
+import { Users, Gamepad2, Save, Star, Power, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function AdminPage() {
   const [stats, setStats] = useState({ totalUsers: 0, totalGames: 0, totalSaves: 0, totalRatings: 0 });
@@ -7,20 +7,28 @@ export default function AdminPage() {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // THÊM STATE CHO PHÂN TRANG
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Gọi lại API khi currentPage thay đổi
   useEffect(() => {
     fetchAdminData();
-  }, []);
+  }, [currentPage]);
 
   const fetchAdminData = async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
     try {
-      // Gọi 3 API song song để lấy dữ liệu nhanh hơn
+      const headersAuth = { "Authorization": `Bearer ${token}`, "x-api-key": "Nhom08_Secret_2026" };
+      const headersPublic = { "x-api-key": "Nhom08_Secret_2026" };
+
+      // ĐÃ SỬA: Truyền tham số page và limit vào URL của API users
       const [statsRes, usersRes, gamesRes] = await Promise.all([
-        fetch("http://localhost:5000/api/admin/stats", { headers: { "Authorization": `Bearer ${token}` } }),
-        fetch("http://localhost:5000/api/admin/users", { headers: { "Authorization": `Bearer ${token}` } }),
-        fetch("http://localhost:5000/api/games") // API này public, không cần token
+        fetch("https://localhost:5000/api/admin/stats", { headers: headersAuth }),
+        fetch(`https://localhost:5000/api/admin/users?page=${currentPage}&limit=5`, { headers: headersAuth }),
+        fetch("https://localhost:5000/api/games", { headers: headersPublic }) 
       ]);
 
       const statsData = await statsRes.json();
@@ -28,8 +36,13 @@ export default function AdminPage() {
       const gamesData = await gamesRes.json();
 
       if (statsData.success) setStats(statsData.data);
-      if (usersData.success) setUsers(usersData.data);
       if (gamesData.success) setGames(gamesData.data);
+      
+      // ĐÃ SỬA: Cập nhật danh sách user và tổng số trang từ Backend trả về
+      if (usersData.success) {
+        setUsers(usersData.data);
+        if (usersData.pagination) setTotalPages(usersData.pagination.totalPages);
+      }
       
       setLoading(false);
     } catch (error) {
@@ -41,14 +54,17 @@ export default function AdminPage() {
   const handleToggleGame = async (gameId, currentStatus) => {
     const token = localStorage.getItem("token");
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/games/${gameId}`, {
+      const res = await fetch(`https://localhost:5000/api/admin/games/${gameId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ is_active: !currentStatus }) // Đảo ngược trạng thái
+        headers: { 
+          "Content-Type": "application/json", 
+          "Authorization": `Bearer ${token}`,
+          "x-api-key": "Nhom08_Secret_2026" 
+        },
+        body: JSON.stringify({ is_active: !currentStatus }) 
       });
       const data = await res.json();
       if (data.success) {
-        // Cập nhật lại list game trên màn hình
         setGames(games.map(g => g.id === gameId ? { ...g, is_active: !currentStatus } : g));
       }
     } catch (error) {
@@ -66,54 +82,42 @@ export default function AdminPage() {
           <h1 className="text-3xl font-black tracking-widest text-white uppercase">Bảng Điều Khiển Quản Trị</h1>
         </div>
 
-        {/* 1. THỐNG KÊ (STATS) */}
+        {/* THỐNG KÊ */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
           <div className="bg-slate-800 border-l-4 border-blue-500 p-6 rounded-xl shadow-lg">
             <div className="flex justify-between items-start">
-              <div>
-                <p className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-1">Người dùng</p>
-                <h3 className="text-3xl font-black text-white">{stats.totalUsers}</h3>
-              </div>
+              <div><p className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-1">Người dùng</p><h3 className="text-3xl font-black text-white">{stats.totalUsers}</h3></div>
               <div className="p-3 bg-blue-500/20 rounded-lg"><Users className="text-blue-500" /></div>
             </div>
           </div>
           <div className="bg-slate-800 border-l-4 border-amber-500 p-6 rounded-xl shadow-lg">
             <div className="flex justify-between items-start">
-              <div>
-                <p className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-1">Trò chơi</p>
-                <h3 className="text-3xl font-black text-white">{stats.totalGames}</h3>
-              </div>
+              <div><p className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-1">Trò chơi</p><h3 className="text-3xl font-black text-white">{stats.totalGames}</h3></div>
               <div className="p-3 bg-amber-500/20 rounded-lg"><Gamepad2 className="text-amber-500" /></div>
             </div>
           </div>
           <div className="bg-slate-800 border-l-4 border-green-500 p-6 rounded-xl shadow-lg">
             <div className="flex justify-between items-start">
-              <div>
-                <p className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-1">Lượt lưu Game</p>
-                <h3 className="text-3xl font-black text-white">{stats.totalSaves}</h3>
-              </div>
+              <div><p className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-1">Lượt lưu Game</p><h3 className="text-3xl font-black text-white">{stats.totalSaves}</h3></div>
               <div className="p-3 bg-green-500/20 rounded-lg"><Save className="text-green-500" /></div>
             </div>
           </div>
           <div className="bg-slate-800 border-l-4 border-pink-500 p-6 rounded-xl shadow-lg">
             <div className="flex justify-between items-start">
-              <div>
-                <p className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-1">Đánh giá</p>
-                <h3 className="text-3xl font-black text-white">{stats.totalRatings}</h3>
-              </div>
+              <div><p className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-1">Đánh giá</p><h3 className="text-3xl font-black text-white">{stats.totalRatings}</h3></div>
               <div className="p-3 bg-pink-500/20 rounded-lg"><Star className="text-pink-500" /></div>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* 2. QUẢN LÝ NGƯỜI DÙNG */}
-          <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+          {/* QUẢN LÝ NGƯỜI DÙNG */}
+          <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 overflow-hidden flex flex-col">
             <div className="bg-slate-700/50 px-6 py-4 border-b border-slate-700">
               <h2 className="text-lg font-bold text-white flex items-center gap-2"><Users size={20}/> DANH SÁCH NGƯỜI DÙNG</h2>
             </div>
-            <div className="p-6 overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="p-6 overflow-x-auto flex-1">
+              <table className="w-full text-left border-collapse mb-4">
                 <thead>
                   <tr className="text-slate-400 text-sm border-b border-slate-700">
                     <th className="pb-3 font-semibold">Tên đăng nhập</th>
@@ -136,9 +140,30 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+            
+            {/* GIAO DIỆN NÚT BẤM PHÂN TRANG */}
+            <div className="bg-slate-700/30 px-6 py-4 border-t border-slate-700 flex justify-between items-center">
+              <span className="text-sm text-slate-400">Trang {currentPage} / {totalPages || 1}</span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:hover:bg-slate-700 text-white rounded-lg transition-colors"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="p-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:hover:bg-amber-500 text-white rounded-lg transition-colors"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* 3. QUẢN LÝ GAME (BẬT/TẮT) */}
+          {/* QUẢN LÝ GAME */}
           <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 overflow-hidden">
             <div className="bg-slate-700/50 px-6 py-4 border-b border-slate-700">
               <h2 className="text-lg font-bold text-white flex items-center gap-2"><Gamepad2 size={20}/> QUẢN LÝ TRÒ CHƠI</h2>

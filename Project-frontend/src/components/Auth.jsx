@@ -9,20 +9,39 @@ export default function Auth({ onLoginSuccess }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // HÀM VALIDATION: Kiểm tra dữ liệu hợp lệ (Nhiệm vụ của Trường)
+  const validateInput = () => {
+    if (!username.trim()) return "Tên đăng nhập không được để trống!";
+    if (username.length < 3) return "Tên đăng nhập phải có ít nhất 3 ký tự!";
+    if (password.length < 6) return "Mật khẩu phải có ít nhất 6 ký tự!";
+    if (!isLogin && !fullname.trim()) return "Họ và tên không được để trống!";
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Chạy kiểm tra lỗi trước khi gửi
+    const validationError = validateInput();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setError("");
     setLoading(true);
 
-    // Quyết định gọi đường dẫn Login hay Register
     const endpoint = isLogin ? "/api/users/login" : "/api/users/register";
     const payload = isLogin ? { username, password } : { username, password, fullname };
 
     try {
-      // Gọi xuống Backend Express (cổng 5000)
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
+      // ĐÃ SỬA: Dùng https theo yêu cầu của Huy
+      const response = await fetch(`https://localhost:5000${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-api-key": "Nhom08_Secret_2026"
+        },
         body: JSON.stringify(payload),
       });
 
@@ -30,20 +49,19 @@ export default function Auth({ onLoginSuccess }) {
 
       if (data.success) {
         if (isLogin) {
-          // Lưu token như một "Thẻ thông hành" vào ví của trình duyệt
           localStorage.setItem("token", data.token);
           localStorage.setItem("user", JSON.stringify(data.user));
-          // Báo cho App.jsx biết là đã đăng nhập xong
           onLoginSuccess(data.user);
         } else {
           alert("Tạo tài khoản thành công! Bây giờ hãy đăng nhập nhé.");
-          setIsLogin(true); // Chuyển về màn Đăng nhập
+          setIsLogin(true); 
+          setPassword(""); // Xóa pass sau khi đăng ký thành công cho bảo mật
         }
       } else {
-        setError(data.message); // Hiển thị lỗi từ backend (vd: sai pass, trùng tên...)
+        setError(data.message); 
       }
     } catch (err) {
-      setError("Không thể kết nối đến máy chủ! Vui lòng kiểm tra lại Backend.");
+      setError("Không thể kết nối đến máy chủ HTTPS! Hãy chắc chắn Backend đã bật.");
     } finally {
       setLoading(false);
     }
@@ -64,7 +82,7 @@ export default function Auth({ onLoginSuccess }) {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-400 text-sm font-semibold text-center">
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-400 text-sm font-semibold text-center animate-pulse">
             ⚠️ {error}
           </div>
         )}
@@ -77,26 +95,23 @@ export default function Auth({ onLoginSuccess }) {
               value={fullname}
               onChange={(e) => setFullname(e.target.value)}
               className="px-4 py-3 bg-slate-700 text-white rounded-xl outline-none focus:ring-2 focus:ring-amber-500 transition-all placeholder:text-slate-400"
-              required
             />
           )}
           
           <input
             type="text"
-            placeholder="Tên đăng nhập"
+            placeholder="Tên đăng nhập (Ít nhất 3 ký tự)"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             className="px-4 py-3 bg-slate-700 text-white rounded-xl outline-none focus:ring-2 focus:ring-amber-500 transition-all placeholder:text-slate-400"
-            required
           />
           
           <input
             type="password"
-            placeholder="Mật khẩu"
+            placeholder="Mật khẩu (Ít nhất 6 ký tự)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="px-4 py-3 bg-slate-700 text-white rounded-xl outline-none focus:ring-2 focus:ring-amber-500 transition-all placeholder:text-slate-400"
-            required
           />
 
           <button
