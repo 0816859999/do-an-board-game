@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import GameControls from "./GameControls";
-import { Save, FolderOpen, Star, X, Trophy, MessageSquare } from "lucide-react";
+import { Save, FolderOpen, Star, X, Trophy, MessageSquare, CircleHelp } from "lucide-react"; 
 
 const ROWS = 20; const COLS = 20;
 
@@ -12,6 +12,16 @@ const GAMES = [
   { id: 5, name: "RẮN SĂN MỒI", color: "bg-green-500", shadow: "shadow-[0_0_8px_rgba(34,197,94,0.8)]" },
   { id: 6, name: "CỜ TRÍ NHỚ", color: "bg-teal-500", shadow: "shadow-[0_0_8px_rgba(20,184,166,0.8)]" },
   { id: 7, name: "GHÉP HÀNG 3", color: "bg-pink-500", shadow: "shadow-[0_0_8px_rgba(236,72,153,0.8)]" },
+];
+
+const GAME_RULES = [
+  "TIC-TAC-TOE: Lượt đi luân phiên (X đi trước). Tạo thành 1 hàng 3 X liên tiếp (ngang, dọc, chéo) để chiến thắng.",
+  "CỜ CARO (5): Trò chơi kinh điển. Tạo thành 1 hàng 5 X liên tiếp để giành chiến thắng. Máy sẽ chặn bạn!",
+  "CỜ CARO (4): Phiên bản nhanh. Chỉ cần tạo thành 1 hàng 4 X liên tiếp là bạn chiến thắng.",
+  "BẢNG VẼ TỰ DO: Thỏa sức sáng tạo. Bấm nút di chuyển để vẽ, bấm ENTER để đổi màu sắc khác nhau.",
+  "RẮN SĂN MỒI: Điều khiển rắn ăn mồi (vàng) để ghi điểm và dài ra. Cẩn thận đừng đâm vào tường hoặc đuôi!",
+  "CỜ TRÍ NHỚ: Mở 2 ô cùng lúc. Nếu giống nhau sẽ ăn điểm. Nếu khác màu, bạn mất lượt và ô sẽ úp lại.",
+  "GHÉP HÀNG 3: Bấm ENTER để chọn 1 ô, sau đó di chuyển và bấm ENTER lần nữa để đổi chỗ tạo hàng 3 cùng màu."
 ];
 
 const MENU_ARTS = [
@@ -45,7 +55,6 @@ export default function GameBoard() {
   const [time, setTime] = useState(0); 
   const [score, setScore] = useState(0);
 
-  // --- STATES CHO MODAL ---
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [savedGames, setSavedGames] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -59,15 +68,25 @@ export default function GameBoard() {
   const [rankFilter, setRankFilter] = useState("global"); 
   const [rankData, setRankData] = useState([]);
 
-  // --- API LƯU/TẢI GAME ---
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [selectedTime, setSelectedTime] = useState(0);
+
+  // Hàm tạo Headers chuẩn để vượt qua bảo mật của Backend
+  const getHeaders = (token) => ({
+    "Content-Type": "application/json",
+    "Authorization": token ? `Bearer ${token}` : "",
+    "x-api-key": "Nhom08_Secret_2026"
+  });
+
   const handleSaveGame = async () => {
     const token = localStorage.getItem("token");
     if (!token) return alert("Bạn cần đăng nhập để lưu game!");
     setIsSaving(true);
     const state = { tttBoard, caroBoard, drawBoard, snake, snakeDir, food, memBoard, memRevealed, m3Board };
     try {
-      const res = await fetch("http://localhost:5000/api/saves", {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      const res = await fetch("https://localhost:5000/api/saves", {
+        method: "POST", 
+        headers: getHeaders(token),
         body: JSON.stringify({ game_id: selectedIndex + 1, board_state: state, score, play_time_seconds: time }),
       });
       const data = await res.json();
@@ -79,7 +98,9 @@ export default function GameBoard() {
     const token = localStorage.getItem("token");
     if (!token) return alert("Bạn cần đăng nhập để tải game!");
     try {
-      const res = await fetch("http://localhost:5000/api/saves", { headers: { "Authorization": `Bearer ${token}` } });
+      const res = await fetch("https://localhost:5000/api/saves", { 
+        headers: getHeaders(token) 
+      });
       const data = await res.json();
       if (data.success) { setSavedGames(data.data); setShowLoadModal(true); }
     } catch (e) { alert("Lỗi mạng!"); }
@@ -94,10 +115,11 @@ export default function GameBoard() {
     setShowLoadModal(false); alert(`Đã tải game: ${saved.game_name}`);
   };
 
-  // --- API ĐÁNH GIÁ (RATING) ---
   const handleOpenRating = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/features/rating/${selectedIndex + 1}`);
+      const res = await fetch(`https://localhost:5000/api/features/rating/${selectedIndex + 1}`, {
+        headers: { "x-api-key": "Nhom08_Secret_2026" } // API Public, chỉ cần API KEY
+      });
       const data = await res.json();
       if(data.success) setRatingsList(data.data);
       setShowRatingModal(true);
@@ -108,22 +130,22 @@ export default function GameBoard() {
     const token = localStorage.getItem("token");
     if (!token) return alert("Cần đăng nhập để đánh giá!");
     try {
-      await fetch("http://localhost:5000/api/features/rating", {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      await fetch("https://localhost:5000/api/features/rating", {
+        method: "POST", 
+        headers: getHeaders(token),
         body: JSON.stringify({ game_id: selectedIndex + 1, stars: myStars, comment: myComment })
       });
-      setMyComment(""); handleOpenRating(); // Reload list
+      setMyComment(""); handleOpenRating(); 
     } catch(e) { alert("Lỗi mạng!"); }
   };
 
-  // --- API XẾP HẠNG (RANKING) ---
   const handleOpenRanking = async (filter = "global") => {
     const token = localStorage.getItem("token");
     if (!token) return alert("Bạn cần đăng nhập để xem bảng xếp hạng!");
     setRankFilter(filter);
     try {
-      const res = await fetch(`http://localhost:5000/api/features/ranking/${selectedIndex + 1}?filter=${filter}`, {
-        headers: { "Authorization": `Bearer ${token}` }
+      const res = await fetch(`https://localhost:5000/api/features/ranking/${selectedIndex + 1}?filter=${filter}`, {
+        headers: getHeaders(token)
       });
       const data = await res.json();
       if(data.success) { setRankData(data.data); setShowRankModal(true); }
@@ -131,32 +153,45 @@ export default function GameBoard() {
   };
 
   useEffect(() => {
-    let interval; if (appState === "PLAYING" && !winner && !isGameOver && !showLoadModal && !showRatingModal && !showRankModal) interval = setInterval(() => setTime(p => p + 1), 1000);
+    let interval; 
+    if (appState === "PLAYING" && !winner && !isGameOver && !showLoadModal && !showRatingModal && !showRankModal && !showHelpModal) {
+      interval = setInterval(() => {
+        setTime(p => {
+          if (selectedTime > 0) {
+            if (p <= 1) {
+              setIsGameOver(true); 
+              return 0;
+            }
+            return p - 1;
+          }
+          return p + 1;
+        });
+      }, 1000);
+    }
     return () => clearInterval(interval);
-  }, [appState, winner, isGameOver, showLoadModal, showRatingModal, showRankModal]);
+  }, [appState, winner, isGameOver, showLoadModal, showRatingModal, showRankModal, showHelpModal, selectedTime]);
   
   const formatTime = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
   
-  // Game Logic
   const findM3Matches = (b) => { let matched = Array(8).fill(0).map(()=>Array(8).fill(false)); let hasMatch = false; for(let r=0; r<8; r++) for(let c=0; c<6; c++) if(b[r][c] && b[r][c]===b[r][c+1] && b[r][c]===b[r][c+2]) { matched[r][c]=matched[r][c+1]=matched[r][c+2]=true; hasMatch=true; let k=c+3; while(k<8 && b[r][k]===b[r][c]) { matched[r][k]=true; k++; } } for(let c=0; c<8; c++) for(let r=0; r<6; r++) if(b[r][c] && b[r][c]===b[r+1][c] && b[r][c]===b[r+2][c]) { matched[r][c]=matched[r+1][c]=matched[r+2][c]=true; hasMatch=true; let k=r+3; while(k<8 && b[k][c]===b[r][c]) { matched[k][c]=true; k++; } } return {hasMatch, matched}; };
   const processM3Matches = (b, matched) => { let newB = b.map(r => [...r]); let pts = 0; for(let c=0; c<8; c++) { let col = []; for(let r=0; r<8; r++) { if(!matched[r][c]) col.push(newB[r][c]); else pts+=10; } while(col.length < 8) col.unshift(M3_COLORS[Math.floor(Math.random()*5)]); for(let r=0; r<8; r++) newB[r][c] = col[r]; } return {newB, pts}; };
   useEffect(() => { if (appState === "PLAYING" && selectedIndex === 6) { const {hasMatch, matched} = findM3Matches(m3Board); if (hasMatch) { setTurn('WAIT'); const timer = setTimeout(() => { const {newB, pts} = processM3Matches(m3Board, matched); setM3Board(newB); setScore(s => s + pts); }, 400); return () => clearTimeout(timer); } else setTurn('X'); } }, [m3Board, appState, selectedIndex]);
   const checkTttWinner = (b) => { const l=[[[0,0],[0,1],[0,2]],[[1,0],[1,1],[1,2]],[[2,0],[2,1],[2,2]],[[0,0],[1,0],[2,0]],[[0,1],[1,1],[2,1]],[[0,2],[1,2],[2,2]],[[0,0],[1,1],[2,2]],[[0,2],[1,1],[2,0]]]; for(let x of l) if(b[x[0][0]][x[0][1]]&&b[x[0][0]][x[0][1]]===b[x[1][0]][x[1][1]]&&b[x[0][0]][x[0][1]]===b[x[2][0]][x[2][1]]) return b[x[0][0]][x[0][1]]; if(b.flat().every(c=>c!==null)) return 'DRAW'; return null; };
   const checkCaroWinner = (b, r, c, p, w) => { const d=[[0,1],[1,0],[1,1],[1,-1]]; for(let [dr,dc] of d){ let cnt=1; for(let i=1;i<=w;i++){if(b[r+dr*i]?.[c+dc*i]===p)cnt++;else break;} for(let i=1;i<=w;i++){if(b[r-dr*i]?.[c-dc*i]===p)cnt++;else break;} if(cnt>=w)return p;} return null; };
   useEffect(() => { if (appState === "PLAYING" && turn === 'O' && !winner && selectedIndex < 3) { const to = setTimeout(() => { let e = []; if (selectedIndex === 0) { for(let r=0;r<3;r++) for(let c=0;c<3;c++) if(!tttBoard[r][c]) e.push({r,c}); if(e.length>0){const rc=e[Math.floor(Math.random()*e.length)];const nb=[...tttBoard];nb[rc.r][rc.c]='O';setTttBoard(nb);setWinner(checkTttWinner(nb));setTurn('X');} } else if (selectedIndex === 1 || selectedIndex === 2) { for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(!caroBoard[r][c]) e.push({r,c}); if(e.length>0){const rc=e[Math.floor(Math.random()*e.length)];const nb=[...caroBoard];nb[rc.r][rc.c]='O';setCaroBoard(nb);setWinner(checkCaroWinner(nb,rc.r,rc.c,'O',selectedIndex===1?5:4));setTurn('X');} } }, 300); return () => clearTimeout(to); } }, [turn, appState, tttBoard, caroBoard, winner, selectedIndex]);
-  useEffect(() => { if (appState === "PLAYING" && selectedIndex === 4 && !isGameOver && !showLoadModal && !showRatingModal && !showRankModal) { const itv = setInterval(() => { setSnake((p) => { const h = {...p[0]}; if(snakeDir==="UP")h.r-=1;if(snakeDir==="DOWN")h.r+=1;if(snakeDir==="LEFT")h.c-=1;if(snakeDir==="RIGHT")h.c+=1; if(h.r<0||h.r>=ROWS||h.c<0||h.c>=COLS||p.some(d=>d.r===h.r&&d.c===h.c)){setIsGameOver(true);return p;} const ns=[h,...p]; if(h.r===food.r&&h.c===food.c){setScore(s=>s+10);setFood({r:Math.floor(Math.random()*ROWS),c:Math.floor(Math.random()*COLS)});}else ns.pop(); return ns; }); }, Math.max(80, 200 - score * 5)); return () => clearInterval(itv); } }, [appState, selectedIndex, snakeDir, isGameOver, food, score, showLoadModal, showRatingModal, showRankModal]);
+  useEffect(() => { if (appState === "PLAYING" && selectedIndex === 4 && !isGameOver && !showLoadModal && !showRatingModal && !showRankModal && !showHelpModal) { const itv = setInterval(() => { setSnake((p) => { const h = {...p[0]}; if(snakeDir==="UP")h.r-=1;if(snakeDir==="DOWN")h.r+=1;if(snakeDir==="LEFT")h.c-=1;if(snakeDir==="RIGHT")h.c+=1; if(h.r<0||h.r>=ROWS||h.c<0||h.c>=COLS||p.some(d=>d.r===h.r&&d.c===h.c)){setIsGameOver(true);return p;} const ns=[h,...p]; if(h.r===food.r&&h.c===food.c){setScore(s=>s+10);setFood({r:Math.floor(Math.random()*ROWS),c:Math.floor(Math.random()*COLS)});}else ns.pop(); return ns; }); }, Math.max(80, 200 - score * 5)); return () => clearInterval(itv); } }, [appState, selectedIndex, snakeDir, isGameOver, food, score, showLoadModal, showRatingModal, showRankModal, showHelpModal]);
   useEffect(() => { const newBoard = Array(ROWS).fill(null).map(() => Array(COLS).fill(0)); if (appState === "MENU") { const art = MENU_ARTS[selectedIndex]; for(let r=0; r < art.length; r++) for(let c=0; c < art[r].length; c++) if (art[r][c] !== ' ' && (r+6) < ROWS && c < COLS) newBoard[r+6][c] = 1; } else if (appState === "PLAYING") { if (selectedIndex === 0) { for (let i=4; i<=15; i++) { newBoard[7][i]=2; newBoard[11][i]=2; newBoard[i][7]=2; newBoard[i][11]=2; } for(let r=0; r<3; r++) for(let c=0; c<3; c++) { if (tttBoard[r][c] === 'X') { const dr=r*4+5,dc=c*4+5;newBoard[dr-1][dc-1]=4;newBoard[dr-1][dc+1]=4;newBoard[dr][dc]=4;newBoard[dr+1][dc-1]=4;newBoard[dr+1][dc+1]=4; } if (tttBoard[r][c] === 'O') { const dr=r*4+5,dc=c*4+5;newBoard[dr-1][dc]=5;newBoard[dr+1][dc]=5;newBoard[dr][dc-1]=5;newBoard[dr][dc+1]=5; } } if (!winner && turn === 'X' && !tttBoard[cursor.r][cursor.c]) newBoard[cursor.r*4+5][cursor.c*4+5] = 3; } else if (selectedIndex === 1 || selectedIndex === 2) { for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) { if (caroBoard[r][c] === 'X') newBoard[r][c] = 4; if (caroBoard[r][c] === 'O') newBoard[r][c] = 5; } if (!winner && turn === 'X' && !caroBoard[cursor.r][cursor.c]) newBoard[cursor.r][cursor.c] = 3; } else if (selectedIndex === 3) { for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) if (drawBoard[r][c] !== 0) newBoard[r][c] = drawBoard[r][c]; newBoard[cursor.r][cursor.c] = 3; } else if (selectedIndex === 4) { newBoard[food.r][food.c] = 8; snake.forEach((d, i) => { newBoard[d.r][d.c] = i===0 ? 6 : 9; }); } else if (selectedIndex === 5) { for(let r=7; r<=12; r++) for(let c=7; c<=12; c++) { if (r===7||r===12||c===7||c===12) newBoard[r][c] = 2; else newBoard[r][c] = memRevealed[r][c] ? memBoard[r][c] : 20; } if (!winner && turn !== 'WAIT' && cursor.r>=8 && cursor.r<=11 && cursor.c>=8 && cursor.c<=11) newBoard[cursor.r][cursor.c] = 3; } else if (selectedIndex === 6) { for(let i=5; i<=14; i++) { newBoard[5][i]=2; newBoard[14][i]=2; newBoard[i][5]=2; newBoard[i][14]=2; } for(let r=0; r<8; r++) { for(let c=0; c<8; c++) { let val = m3Board[r][c]; if (m3Selected && m3Selected.r === r && m3Selected.c === c) val += 50; if (!winner && turn !== 'WAIT' && cursor.r === r+6 && cursor.c === c+6) val += 100; newBoard[r+6][c+6] = val; } } } } setBoard(newBoard); }, [appState, selectedIndex, cursor, tttBoard, caroBoard, drawBoard, snake, food, memBoard, memRevealed, m3Board, m3Selected, winner, turn]);
 
   let bMinR=0, bMaxR=ROWS-1, bMinC=0, bMaxC=COLS-1; if(selectedIndex===0){bMaxR=2;bMaxC=2;} else if(selectedIndex===5){bMinR=8;bMaxR=11;bMinC=8;bMaxC=11;} else if(selectedIndex===6){bMinR=6;bMaxR=13;bMinC=6;bMaxC=13;}
-  const handleLeft = () => { if(showLoadModal || showRatingModal || showRankModal) return; if(appState==="MENU")setSelectedIndex(p=>(p===0?GAMES.length-1:p-1)); else if(selectedIndex===4&&snakeDir!=="RIGHT")setSnakeDir("LEFT"); else if(!winner&&turn!=='WAIT'&&selectedIndex!==4)setCursor(p=>({...p,c:Math.max(bMinC,p.c-1)})); };
-  const handleRight = () => { if(showLoadModal || showRatingModal || showRankModal) return; if(appState==="MENU")setSelectedIndex(p=>(p===GAMES.length-1?0:p+1)); else if(selectedIndex===4&&snakeDir!=="LEFT")setSnakeDir("RIGHT"); else if(!winner&&turn!=='WAIT'&&selectedIndex!==4)setCursor(p=>({...p,c:Math.min(bMaxC,p.c+1)})); };
-  const handleUp = () => { if(showLoadModal || showRatingModal || showRankModal) return; if(appState==="PLAYING"&&selectedIndex===4&&snakeDir!=="DOWN")setSnakeDir("UP"); else if(appState==="PLAYING"&&!winner&&turn!=='WAIT'&&selectedIndex!==4)setCursor(p=>({...p,r:Math.max(bMinR,p.r-1)})); };
-  const handleDown = () => { if(showLoadModal || showRatingModal || showRankModal) return; if(appState==="PLAYING"&&selectedIndex===4&&snakeDir!=="UP")setSnakeDir("DOWN"); else if(appState==="PLAYING"&&!winner&&turn!=='WAIT'&&selectedIndex!==4)setCursor(p=>({...p,r:Math.min(bMaxR,p.r+1)})); };
+  const handleLeft = () => { if(showLoadModal || showRatingModal || showRankModal || showHelpModal) return; if(appState==="MENU")setSelectedIndex(p=>(p===0?GAMES.length-1:p-1)); else if(selectedIndex===4&&snakeDir!=="RIGHT")setSnakeDir("LEFT"); else if(!winner&&turn!=='WAIT'&&selectedIndex!==4)setCursor(p=>({...p,c:Math.max(bMinC,p.c-1)})); };
+  const handleRight = () => { if(showLoadModal || showRatingModal || showRankModal || showHelpModal) return; if(appState==="MENU")setSelectedIndex(p=>(p===GAMES.length-1?0:p+1)); else if(selectedIndex===4&&snakeDir!=="LEFT")setSnakeDir("RIGHT"); else if(!winner&&turn!=='WAIT'&&selectedIndex!==4)setCursor(p=>({...p,c:Math.min(bMaxC,p.c+1)})); };
+  const handleUp = () => { if(showLoadModal || showRatingModal || showRankModal || showHelpModal) return; if(appState==="PLAYING"&&selectedIndex===4&&snakeDir!=="DOWN")setSnakeDir("UP"); else if(appState==="PLAYING"&&!winner&&turn!=='WAIT'&&selectedIndex!==4)setCursor(p=>({...p,r:Math.max(bMinR,p.r-1)})); };
+  const handleDown = () => { if(showLoadModal || showRatingModal || showRankModal || showHelpModal) return; if(appState==="PLAYING"&&selectedIndex===4&&snakeDir!=="UP")setSnakeDir("DOWN"); else if(appState==="PLAYING"&&!winner&&turn!=='WAIT'&&selectedIndex!==4)setCursor(p=>({...p,r:Math.min(bMaxR,p.r+1)})); };
 
   const handleEnter = () => {
-    if(showLoadModal || showRatingModal || showRankModal) return;
+    if(showLoadModal || showRatingModal || showRankModal || showHelpModal) return;
     if (appState === "MENU") {
-      setAppState("PLAYING"); setTurn('X'); setWinner(null); setTime(0); setScore(0); setIsGameOver(false);
+      setAppState("PLAYING"); setTurn('X'); setWinner(null); setTime(selectedTime); setScore(0); setIsGameOver(false);
       if (selectedIndex===0) { setTttBoard(Array(3).fill(null).map(()=>Array(3).fill(null))); setCursor({r:1,c:1}); } else if (selectedIndex===1 || selectedIndex===2) { setCaroBoard(Array(ROWS).fill(null).map(()=>Array(COLS).fill(null))); setCursor({r:9,c:9}); } else if (selectedIndex===3) { setDrawBoard(Array(ROWS).fill(0).map(()=>Array(COLS).fill(0))); setCursor({r:9,c:9}); } else if (selectedIndex===4) { setSnake([{r:10,c:10},{r:10,c:9},{r:10,c:8}]); setSnakeDir("RIGHT"); setFood({r:5,c:15}); } else if (selectedIndex===5) { let p=[10,10,11,11,12,12,13,13,14,14,15,15,16,16,17,17]; p.sort(()=>Math.random()-0.5); const nb=Array(ROWS).fill(0).map(()=>Array(COLS).fill(0)); let i=0; for(let r=8;r<=11;r++)for(let c=8;c<=11;c++)nb[r][c]=p[i++]; setMemBoard(nb); setMemRevealed(Array(ROWS).fill(false).map(()=>Array(COLS).fill(false))); setMemFlipped([]); setMemMatches(0); setCursor({r:8,c:8}); } else if (selectedIndex===6) { setM3Board(Array(8).fill(0).map(()=>Array(8).fill(0).map(()=>M3_COLORS[Math.floor(Math.random()*5)]))); setM3Selected(null); setCursor({r:9,c:9}); }
     } 
     else if (appState === "PLAYING" && !winner && !isGameOver) {
@@ -164,15 +199,15 @@ export default function GameBoard() {
     }
   };
 
-  // --- HÀM XỬ LÝ NÚT BACK (ĐÃ SỬA LỖI XÓA THÔNG BÁO THẮNG/THUA) ---
   const handleBack = () => { 
-    if (showLoadModal) setShowLoadModal(false); 
+    if (showHelpModal) setShowHelpModal(false);
+    else if (showLoadModal) setShowLoadModal(false); 
     else if (showRatingModal) setShowRatingModal(false); 
     else if (showRankModal) setShowRankModal(false); 
     else if (appState === "PLAYING") {
       setAppState("MENU");
-      setWinner(null);      // Xóa thông báo chiến thắng
-      setIsGameOver(false); // Xóa thông báo thua cuộc
+      setWinner(null);      
+      setIsGameOver(false); 
     }
   };
 
@@ -181,7 +216,6 @@ export default function GameBoard() {
   return (
     <div className="flex flex-col items-center justify-center w-full my-4 relative">
       
-      {/* 1. MODAL ĐÁNH GIÁ (RATING) */}
       {showRatingModal && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 rounded-3xl">
           <div className="bg-slate-800 border-2 border-slate-600 w-full max-w-md rounded-2xl shadow-2xl p-6 flex flex-col">
@@ -214,7 +248,6 @@ export default function GameBoard() {
         </div>
       )}
 
-      {/* 2. MODAL BẢNG XẾP HẠNG (RANKING) */}
       {showRankModal && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 rounded-3xl">
           <div className="bg-slate-800 border-2 border-slate-600 w-full max-w-md rounded-2xl shadow-2xl p-6 flex flex-col">
@@ -244,7 +277,6 @@ export default function GameBoard() {
         </div>
       )}
 
-      {/* 3. MODAL TẢI GAME */}
       {showLoadModal && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 rounded-3xl">
           <div className="bg-slate-800 border-2 border-slate-600 w-full max-w-md rounded-2xl shadow-2xl p-6 flex flex-col">
@@ -264,7 +296,23 @@ export default function GameBoard() {
         </div>
       )}
 
-      {/* GIAO DIỆN GAME CHÍNH */}
+      {showHelpModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 rounded-3xl">
+          <div className="bg-slate-800 border-2 border-slate-600 w-full max-w-sm rounded-2xl shadow-2xl p-6 flex flex-col items-center text-center">
+            <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
+              <CircleHelp size={32} className="text-blue-500" />
+            </div>
+            <h2 className="text-xl font-black text-white mb-2 uppercase tracking-wide">{GAMES[selectedIndex].name}</h2>
+            <p className="text-slate-300 text-sm leading-relaxed mb-6">
+              {GAME_RULES[selectedIndex]}
+            </p>
+            <button onClick={() => setShowHelpModal(false)} className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 font-bold text-white rounded-xl shadow-md transition-colors">
+              ĐÃ HIỂU
+            </button>
+          </div>
+        </div>
+      )}
+
       {appState === "PLAYING" && (
         <div className="flex justify-between items-center w-full max-w-sm mb-4 px-6 py-3 bg-slate-800 text-white rounded-2xl shadow-md border-2 border-slate-700">
           <div className="flex flex-col"><span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Thời gian</span><span className="text-xl font-mono text-amber-400 font-bold">{formatTime(time)}</span></div>
@@ -272,7 +320,11 @@ export default function GameBoard() {
         </div>
       )}
 
-      {(winner || isGameOver) && ( <div className={`mb-4 px-6 py-2 rounded-xl text-xl font-bold animate-bounce shadow-lg text-white ${isGameOver ? 'bg-red-600' : 'bg-green-600'}`}>{isGameOver ? "GAME OVER! RẮN ĐÃ CHẾT!" : `CHIẾN THẮNG!`}</div> )}
+      {(winner || isGameOver) && ( 
+        <div className={`mb-4 px-6 py-2 rounded-xl text-xl font-bold animate-bounce shadow-lg text-white ${isGameOver ? 'bg-red-600' : 'bg-green-600'}`}>
+          {isGameOver ? (time === 0 && selectedTime > 0 ? "HẾT GIỜ! GAME OVER!" : "GAME OVER! RẮN ĐÃ CHẾT!") : `CHIẾN THẮNG!`}
+        </div> 
+      )}
 
       <div className="bg-slate-50 p-6 rounded-3xl shadow-lg border border-slate-200">
         <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}>
@@ -282,14 +334,26 @@ export default function GameBoard() {
         </div>
       </div>
 
-      <GameControls isPlaying={appState === "PLAYING"} onLeft={handleLeft} onRight={handleRight} onUp={handleUp} onDown={handleDown} onEnter={handleEnter} onBack={handleBack} onHelp={() => {}} />
+      {appState === "MENU" && (
+        <div className="flex gap-2 mt-4 bg-slate-800 p-2 rounded-xl border border-slate-700">
+          <span className="text-xs text-slate-400 font-bold self-center mr-2 uppercase">Thời gian:</span>
+          <button onClick={() => setSelectedTime(0)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTime === 0 ? 'bg-amber-500 text-white shadow-md' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}`}>VÔ HẠN</button>
+          <button onClick={() => setSelectedTime(300)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTime === 300 ? 'bg-amber-500 text-white shadow-md' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}`}>DỄ (5P)</button>
+          <button onClick={() => setSelectedTime(120)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTime === 120 ? 'bg-amber-500 text-white shadow-md' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}`}>KHÓ (2P)</button>
+        </div>
+      )}
+
+      <GameControls 
+        isPlaying={appState === "PLAYING"} 
+        onLeft={handleLeft} onRight={handleRight} onUp={handleUp} onDown={handleDown} onEnter={handleEnter} onBack={handleBack} 
+        onHelp={() => setShowHelpModal(true)} 
+      />
 
       <p className="mt-6 text-sm font-bold tracking-widest text-slate-500 uppercase flex items-center gap-2">
         <span className={`w-2 h-2 rounded-full animate-pulse ${appState === "MENU" ? "bg-red-500" : "bg-green-500"}`}></span>
         {appState === "MENU" ? `SELECT GAME (${selectedIndex + 1}/${GAMES.length})` : `PLAYING: ${GAMES[selectedIndex].name}`}
       </p>
 
-      {/* CÁC NÚT ĐÃ KÍCH HOẠT API ĐẦY ĐỦ */}
       <div className="flex flex-wrap justify-center gap-3 mt-6 max-w-md">
         <button onClick={handleSaveGame} disabled={isSaving || appState !== "PLAYING"} className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 text-sm font-bold rounded-lg shadow-sm transition-colors"><Save size={16} className={isSaving ? "animate-spin" : ""} /> LƯU GAME</button>
         <button onClick={handleLoadList} className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-lg shadow-sm transition-colors"><FolderOpen size={16} /> TẢI GAME</button>
