@@ -1,12 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Gamepad2, LogOut } from "lucide-react";
+import { Gamepad2, LogOut, Sun, Moon } from "lucide-react"; // Thêm icon Sun, Moon
 
-export default function Navbar({ user, onLogout }) {
+export default function Navbar({ user, onLogout, isDarkMode, setIsDarkMode }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
     onLogout();
-    navigate("/"); // Đẩy về trang chủ sau khi đăng xuất
+    navigate("/"); 
   };
 
   return (
@@ -17,12 +17,10 @@ export default function Navbar({ user, onLogout }) {
           BOARD GAME
         </Link>
         
-        {/* CÁC MENU ĐIỀU HƯỚNG */}
         <div className="flex gap-6 ml-8">
           <Link to="/" className="text-slate-300 hover:text-white font-semibold transition-colors">Chơi Game</Link>
           <Link to="/profile" className="text-slate-300 hover:text-white font-semibold transition-colors">Cộng Đồng & Cá Nhân</Link>
           
-          {/* Chỉ hiện menu Admin nếu role của user là ADMIN */}
           {user?.role === 'ADMIN' && (
             <Link to="/admin" className="text-rose-400 hover:text-rose-300 font-bold transition-colors">Quản trị Admin</Link>
           )}
@@ -30,14 +28,23 @@ export default function Navbar({ user, onLogout }) {
       </div>
 
       <div className="flex items-center gap-4">
-        <span className="text-slate-300 text-sm font-semibold">
+        {/* NÚT CHUYỂN ĐỔI DARK/LIGHT MODE */}
+        <button 
+          onClick={() => setIsDarkMode(!isDarkMode)} 
+          className="p-2 bg-slate-700 hover:bg-slate-600 text-amber-400 rounded-full transition-colors shadow-inner"
+          title="Chuyển chế độ Sáng/Tối"
+        >
+          {isDarkMode ? <Sun size={18} /> : <Moon size={18} className="text-slate-300" />}
+        </button>
+
+        <span className="text-slate-300 text-sm font-semibold border-l border-slate-600 pl-4">
           Chào, <span className="text-amber-500 font-bold">{user?.fullname || user?.username}</span>!
         </span>
         <button 
           onClick={handleLogout}
           className="flex items-center gap-2 text-xs font-bold text-red-400 hover:text-red-300 uppercase tracking-widest px-3 py-2 bg-red-400/10 hover:bg-red-400/20 rounded-lg transition-colors"
         >
-          <LogOut size={16} /> Đăng xuất
+          <LogOut size={16} /> Thoát
         </button>
       </div>
     </nav>

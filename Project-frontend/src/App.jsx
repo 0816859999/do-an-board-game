@@ -6,9 +6,9 @@ import Navbar from "./components/Navbar";
 import AdminPage from "./components/AdminPage"; 
 import ProfilePage from "./components/ProfilePage";
 
-
 export default function App() {
   const [user, setUser] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(true); // THÊM: Quản lý chế độ Sáng/Tối
 
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
@@ -24,39 +24,30 @@ export default function App() {
     setUser(null);
   };
 
-  // NẾU CHƯA ĐĂNG NHẬP -> HIỂN THỊ MÀN HÌNH AUTH
   if (!user) {
     return <Auth onLoginSuccess={(userData) => setUser(userData)} />;
   }
 
-  // NẾU ĐÃ ĐĂNG NHẬP -> KHỞI ĐỘNG BỘ ĐỊNH TUYẾN
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-slate-900 flex flex-col">
+      {/* THÊM: Thay đổi màu nền tổng thể dựa vào Dark Mode */}
+      <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isDarkMode ? 'bg-slate-900' : 'bg-slate-200'}`}>
         
-        {/* Thanh Navbar luôn hiển thị ở trên cùng */}
-        <Navbar user={user} onLogout={handleLogout} />
+        <Navbar user={user} onLogout={handleLogout} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
 
-        {/* Nội dung thay đổi tùy theo đường link trên trình duyệt */}
         <div className="flex-1 relative flex flex-col">
           <Routes>
-            {/* Đường dẫn gốc: Hiển thị bàn game */}
             <Route path="/" element={<GameBoard />} />
-            
-            {/* Đường dẫn /profile: Hiển thị trang cá nhân */}
             <Route path="/profile" element={<ProfilePage />} />
-            
-            {/* Đường dẫn /admin: BẢO MẬT - Chỉ cho phép role ADMIN truy cập */}
-            <Route 
-              path="/admin" 
-              element={user.role === 'ADMIN' ? <AdminPage /> : <Navigate to="/" />} 
-            />
-            
-            {/* Nếu người dùng gõ link bậy bạ -> Tự động đẩy về trang chủ */}
+            <Route path="/admin" element={user.role === 'ADMIN' ? <AdminPage /> : <Navigate to="/" />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </div>
 
+        {/* THÊM: Footer để lấy trọn điểm giao diện */}
+        <footer className={`py-4 text-center text-sm font-semibold border-t transition-colors ${isDarkMode ? 'bg-slate-800 text-slate-400 border-slate-700' : 'bg-white text-slate-600 border-slate-300 shadow-inner'}`}>
+          <p>© 2026 - Dự án Board Game Ma Trận LED | Nhóm 08 - Môn Lập trình ứng dụng Web</p>
+        </footer>
       </div>
     </BrowserRouter>
   );
