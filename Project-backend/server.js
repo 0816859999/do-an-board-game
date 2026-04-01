@@ -5,6 +5,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
+const apiKeyMiddleware = require('./middleware/apiKeyMiddleware');
 const gameRoutes = require('./routes/gameRoutes');
 const userRoutes = require('./routes/userRoutes');
 const saveRoutes = require('./routes/saveRoutes'); 
@@ -17,6 +18,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use('/api', apiKeyMiddleware);
 // === CÁC ROUTE API GIỮ NGUYÊN ===
 app.use('/api/features', featureRoutes);
 app.use('/api/games', gameRoutes);
