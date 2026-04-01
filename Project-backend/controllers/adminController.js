@@ -34,15 +34,31 @@ exports.getStats = async (req, res) => {
 };
 
 // 2. API: Lấy danh sách tất cả người dùng
+// 2. API: Lấy danh sách tất cả người dùng (Đã thêm Phân trang)
 exports.getAllUsers = async (req, res) => {
   try {
     if (!checkAdmin(req, res)) return;
     
+    // Logic phân trang
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    // Đếm tổng số user để tính số trang
+    const countResult = await db('users').count('id as total').first();
+    const total = parseInt(countResult.total);
+
     const users = await db('users')
       .select('id', 'username', 'fullname', 'role', 'created_at')
-      .orderBy('created_at', 'desc');
+      .orderBy('created_at', 'desc')
+      .limit(limit)
+      .offset(offset);
       
-    res.status(200).json({ success: true, data: users });
+    res.status(200).json({ 
+      success: true, 
+      data: users,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: "Lỗi lấy danh sách người dùng" });
   }
