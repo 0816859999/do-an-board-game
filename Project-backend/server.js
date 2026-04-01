@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const https = require('https'); 
+const fs = require('fs');
 const path = require('path');
 
 const gameRoutes = require('./routes/gameRoutes');
@@ -33,7 +35,18 @@ app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
+// 1. Cấu hình đọc file chứng chỉ SSL 
+const sslOptions = {
+  key: fs.readFileSync(path.join(__dirname, 'config', 'certs', 'localhost+2-key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, 'config', 'certs', 'localhost+2.pem'))
+};
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`✅ Server đang chạy thành công tại: http://localhost:${PORT}`);
+
+// 2. Thay vì app.listen, ta dùng https.createServer để bọc app Express lại
+https.createServer(sslOptions, app).listen(PORT, () => {
+  console.log(`################################################`);
+  console.log(`🔒 HỆ THỐNG ĐÃ ĐƯỢC BẢO MẬT HTTPS`);
+  console.log(`🚀 Server đang chạy tại: https://localhost:${PORT}`);
+  console.log(`################################################`);
 });
