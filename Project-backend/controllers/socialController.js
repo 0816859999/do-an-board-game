@@ -4,16 +4,20 @@ const db = require('../db');
 exports.searchUsers = async (req, res) => {
   try {
     const { keyword } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
     if (!keyword) return res.status(400).json({ success: false, message: "Vui lòng nhập từ khóa tìm kiếm" });
 
-    // Tìm người dùng có username hoặc fullname chứa từ khóa (không phân biệt hoa thường)
     const users = await db('users')
       .where('username', 'ilike', `%${keyword}%`)
       .orWhere('fullname', 'ilike', `%${keyword}%`)
       .select('id', 'username', 'fullname')
-      .limit(10); // Giới hạn 10 kết quả
+      .limit(limit)
+      .offset(offset);
 
-    res.status(200).json({ success: true, data: users });
+    res.status(200).json({ success: true, data: users, pagination: { page, limit } });
   } catch (error) {
     res.status(500).json({ success: false, message: "Lỗi tìm kiếm người dùng" });
   }
@@ -100,13 +104,19 @@ exports.getMessages = async (req, res) => {
   try {
     const user1 = req.user.id;
     const user2 = req.params.friendId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20; // Tin nhắn nên lấy nhiều hơn mỗi trang
+    const offset = (page - 1) * limit;
 
     const messages = await db('messages')
       .where(function() { this.where('sender_id', user1).andWhere('receiver_id', user2) })
       .orWhere(function() { this.where('sender_id', user2).andWhere('receiver_id', user1) })
-      .orderBy('created_at', 'asc');
+      .orderBy('created_at', 'desc') // Sửa thành desc để lấy tin nhắn mới nhất trước
+      .limit(limit)
+      .offset(offset);
 
-    res.status(200).json({ success: true, data: messages });
+    // Đảo ngược lại mảng để hiển thị từ trên xuống dưới cho đúng giao diện chat
+    res.status(200).json({ success: true, data: messages.reverse(), pagination: { page, limit } });
   } catch (error) {
     res.status(500).json({ success: false, message: "Lỗi lấy tin nhắn" });
   }
